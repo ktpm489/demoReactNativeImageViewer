@@ -10,6 +10,8 @@
     "react": "16.3.1",
     "react-native": "0.55.4",
     "react-native-animatable": "^1.2.4",
+    "react-native-dialog": "^4.0.0",
+    "react-native-fs": "^2.10.14",
     "react-native-image-carousel": "^0.4.4",
     "react-native-image-zoom-viewer": "^2.2.5"
   },

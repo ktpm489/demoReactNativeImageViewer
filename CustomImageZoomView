@@ -1,0 +1,275 @@
+import React from 'react'
+import { View, Text, Image, TouchableOpacity, FlatList, Platform, Dimensions } from 'react-native'
+import CoreLayout from 'frontend/Container/CoreLayoutContainer'
+import I18n from 'assets/Lang'
+import styles from './styles'
+import { getUserById, checkLinkChatImage } from 'frontend/Screen/ChatScreen/services'
+import { keyExtractor } from 'common/globalFunction'
+import FastImage from 'react-native-fast-image'
+import images from 'assets/Image'
+import HBInputError from 'frontend/Components/HBInput/HBInputError'
+import { HBCOLOR, height } from 'common/globalStyles'
+import { iconCameraBig, icEmoji } from 'common/globalIcon'
+import { chatMsgType } from 'common/globalConstants'
+import EmojiSelector, { Categories } from 'frontend/Components/HBEmoji'
+import StickerSelector from './Components/StickerGallery'
+import Modal from 'react-native-modalbox'
+import HBSelectModal from 'frontend/Components/HBSelectModal'
+import PhotoGallery from './Components/PhotoGallery'
+import * as Animated from 'react-native-animatable'
+import ScrollableTabView, { DefaultTabBar } from 'react-native-scrollable-tab-view'
+import Card from '../Component/Card'
+import base64 from 'base-64'
+import ImageZoom from 'react-native-image-pan-zoom'
+import ImageViewer from 'react-native-image-zoom-viewer'
+import Lightbox from 'react-native-lightbox'
+import Carousel from 'react-native-looped-carousel'
+const WINDOW_WIDTH = Dimensions.get('window').width
+const others = { alignItems: 'flex-start', justifyContent: 'flex-start', backgroundColor: '#303030', width: WINDOW_WIDTH, height: WINDOW_WIDTH }
+const profilePage = (props) => {
+  const { setRefPage, handleErrSend, onOpenRequestModal, keyboardDidHide, keyboardHeight, onChangeTab, onInputEmoji, openEmoji, isOpenEmoji, setPhotoRef, onOpenModal, setRefList, handleBackRoute, txtMessage, selectedUser, userListData, onChangeMessage, onPressSend, chatList,
+    onCloseModal, itemData, setModalRefs, onClosePhotoModal, onPressSendImage, handleAssetRoute, handleRequestAssetRoute } = props
+
+  let listImage
+
+  const renderListImage = ({ item, index }) => {
+    console.log(item)
+    const isSmall = listImage.length > 2
+    const isAwsImage = checkLinkChatImage(item)
+
+    return (
+      isAwsImage
+        ? <FastImage style={[isSmall ? styles.imgMsgPictureSmall : styles.imgMsgPicture, styles.paddingImage]}
+          source={{
+            uri: item,
+            priority: FastImage.priority.normal
+          }}
+          resizeMode={FastImage.resizeMode.cover} />
+        : <Image source={{ uri: item }} style={[isSmall ? styles.imgMsgPictureSmall : styles.imgMsgPicture, styles.paddingImage]} />
+    )
+  }
+  const imageZoomViewData = (data) => {
+    let arrTemp = data
+    let imgList = []
+    arrTemp && arrTemp.forEach(element => {
+      let obj = {}
+      obj['url'] = element
+      imgList.push(obj)
+    })
+    return imgList
+  }
+
+  const renderImage = (props) => {
+    console.log('Props', props)
+    return (
+      ISIOS ? <FastImage {...props} resizeMode={FastImage.resizeMode.cover} /> : <Image {...props}/>
+    )
+  }
+
+  const renderImgList = (images) => {
+    console.log('Image List', images)
+    return (
+      // <ImageZoom cropWidth={Dimensions.get('window').width}
+      //   cropHeight={Dimensions.get('window').height}
+      //   imageWidth={200}
+      //   imageHeight={200}>
+
+      //   <Image style={{ width: 200, height: 200 }}
+      //     source={{ uri: 'http://v1.qzone.cc/avatar/201407/07/00/24/53b9782c444ca987.jpg!200x200.jpg' }} />
+      //   <View style={{ backgroundColor: '#6C7A89', flex: 1 }} />
+      //   <View style={{ backgroundColor: '#019875', flex: 1 }} />
+      //   <View style={{ backgroundColor: '#E67E22', flex: 1 }} />
+
+      // </ImageZoom>
+      <ImageViewer imageUrls={images} renderImage={renderImage}/>
+    )
+  }
+
+  const renderChat = ({ item, index }) => {
+    let isUserChat = false
+    let isExist = false
+
+    let user = getUserById(userListData.userList, item.fromId)
+    if (item.fromId === userListData.userData._id) {
+      isUserChat = true
+      user = userListData.userData
+    }
+    if (index !== chatList.length - 1) {
+      if (item.fromId !== chatList[index + 1].fromId) {
+        isExist = true
+      }
+    }
+
+    const isListImage = item.type === chatMsgType.imageList
+    const isImage = item.type === chatMsgType.image || item.type === chatMsgType.sticker
+    const isShowUser = !isUserChat && isExist
+    const isRequest = item.type === chatMsgType.request
+    const isPay = item.type === chatMsgType.pay
+    if (isListImage) {
+      listImage = item.message.split(',')
+    }
+    let dataImg = isImage ? imageZoomViewData([item.message]) : (isListImage ? imageZoomViewData(listImage) : null)
+    return (
+      <View style={[styles.chatListContainer,
+        isUserChat && styles.userChatContainer]}>
+        {
+          isShowUser
+            ? user.image
+              ? <FastImage style={styles.imgUserPicture}
+                source={{
+                  uri: user.image,
+                  priority: FastImage.priority.normal
+                }}
+                resizeMode={FastImage.resizeMode.cover} />
+              : <View style={[styles.imgUserPicture, styles.bgNull]}>
+                <Image source={images.userDefault} style={styles.imgUserPictureNull} />
+              </View>
+            : <View style={styles.imgUserPictureNull} />
+        }
+
+        <View style={styles.rightView}>
+          {
+            isShowUser &&
+            <Text style={styles.textUserName}>
+              {user.username}
+            </Text>
+          }
+
+          {
+            isImage
+              ? <Lightbox style={{ flex: 1 }} springConfig={{ tension: 40, friction: 8 }} renderContent={() => renderImgList(dataImg)}>
+                <FastImage style={styles.imgMsgPicture}
+                  source={{
+                    uri: item.message,
+                    priority: FastImage.priority.normal
+                  }}
+                  resizeMode={item.type === chatMsgType.sticker ? FastImage.resizeMode.contain : FastImage.resizeMode.cover} />
+              </Lightbox>
+              : isListImage
+                ? <Lightbox style={{flex: 1}} springConfig={{ tension: 45, friction: 10 }} swipeToDismiss={false} renderContent={() => renderImgList(dataImg)}>
+                  <FlatList
+                    data={listImage}
+                    renderItem={renderListImage}
+                    numColumns={3}
+                    keyExtractor={keyExtractor}
+                  />
+                </Lightbox>
+                : ((!isRequest && !isPay) && <View style={[styles.chatContainer, isUserChat && styles.bgChatUser]}>
+                  <Text style={!isUserChat && styles.textMessage}>{item.message}</Text>
+                </View>)
+          }
+          {
+            (isRequest || isPay)
+              ? <Card
+                chatData={item}
+                handleErrSend={handleErrSend}
+                selectedUser={selectedUser}
+                onOpenRequestModal={onOpenRequestModal}
+                isUserChat={isUserChat}
+                messageData={JSON.parse(base64.decode(item.message))} />
+              : null
+          }
+
+        </View>
+        {/* {
+          isShowUser && <Text style={styles.dateChat}>{convertDateChatFormat(item.createdAt)}</Text>
+        } */}
+      </View>
+
+    )
+  }
+
+  return (
+    <View style={{ flex: 1 }}>
+      <CoreLayout ref={setRefPage} title={selectedUser.username} leftAction={handleBackRoute}>
+        <View style={styles.headerPayment}>
+          <TouchableOpacity style={styles.btnHeader} onPress={handleAssetRoute}>
+            <Text>{I18n.t('ChatScreen.pay')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.btnHeader} onPress={handleRequestAssetRoute}>
+            <Text>{I18n.t('ChatScreen.request')}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <FlatList
+          ref={setRefList}
+          inverted
+          data={chatList}
+          renderItem={renderChat}
+          extraData={chatList.length}
+          contentContainerStyle={styles.contentStyle}
+          keyExtractor={keyExtractor} />
+
+        <Animated.View transition={['height', 'marginBottom']} style={[styles.footerChat, isOpenEmoji && styles.footerEmoji,
+          keyboardHeight !== 0 && { height: Platform.OS === 'ios' ? (keyboardHeight + height(7.5)) : height(7.5) }]}>
+
+          <View style={styles.inputRow}>
+            <TouchableOpacity onPress={onOpenModal}>
+              {iconCameraBig}
+            </TouchableOpacity>
+            <HBInputError
+              value={txtMessage}
+              keyboardDidHide={keyboardDidHide}
+              txtHolder={'Message...'}
+              containerStyle={styles.inputContainer}
+              placeHolderTextStyle={styles.placeHolderTextStyle}
+              colorActive={HBCOLOR.ACTIVE_INPUT}
+              onChangeText={onChangeMessage}
+              btnViewRender={<TouchableOpacity onPress={openEmoji} style={styles.btnEmoji}>{icEmoji}</TouchableOpacity>}
+            />
+
+            <TouchableOpacity onPress={() => onPressSend()} style={styles.btnSend}>
+              <Text>{I18n.t('Initial.Send')}</Text>
+            </TouchableOpacity>
+          </View>
+          {
+            isOpenEmoji
+              ? <ScrollableTabView
+                initialPage={0}
+                onChangeTab={onChangeTab}
+                locked={true}
+                tabBarUnderlineStyle={styles.underlineBar}
+                tabBarActiveTextColor={'white'}
+                tabBarInactiveTextColor={'#4E5461'}
+                tabBarTextStyle={styles.textTabbar}
+
+                renderTabBar={() => <DefaultTabBar style={styles.borderBottomBar} />}
+              >
+
+                <View style={styles.emojiRow} tabLabel={'Emoji'}>
+                  <EmojiSelector
+                    onEmojiSelected={onInputEmoji}
+                    columns={8}
+                    category={Categories.people}
+                  />
+                </View>
+
+                <View tabLabel={'Stickers'}>
+                  <StickerSelector
+                    onStickerSelected={onPressSend}
+                    onEmojiSelected={onInputEmoji}
+                    columns={8}
+                  />
+                </View>
+
+              </ScrollableTabView>
+              : null
+          }
+
+        </Animated.View>
+      </CoreLayout>
+      <Modal ref={setModalRefs} style={styles.modal} position={'bottom'}>
+        <HBSelectModal onCloseModal={onCloseModal} itemData={itemData} />
+      </Modal>
+
+      <Modal ref={setPhotoRef}
+        swipeToClose={false}
+        style={styles.modalPhoto} position={'bottom'}>
+        <PhotoGallery onPressSendImage={onPressSendImage} onPressSend={onPressSend} onClosePhotoModal={onClosePhotoModal} />
+      </Modal>
+    </View>
+
+  )
+}
+
+export default profilePage
